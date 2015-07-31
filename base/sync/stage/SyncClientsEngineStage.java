@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.mozilla.gecko.AppConstants;
+import org.mozilla.gecko.GeckoSharedPrefs;
 import org.mozilla.gecko.background.common.log.Logger;
 import org.mozilla.gecko.sync.CommandProcessor;
 import org.mozilla.gecko.sync.CommandProcessor.Command;
@@ -22,6 +23,7 @@ import org.mozilla.gecko.sync.ExtendedJSONObject;
 import org.mozilla.gecko.sync.HTTPFailureException;
 import org.mozilla.gecko.sync.NoCollectionKeysSetException;
 import org.mozilla.gecko.sync.Utils;
+import org.mozilla.gecko.sync.bridge.GCM;
 import org.mozilla.gecko.sync.crypto.CryptoException;
 import org.mozilla.gecko.sync.crypto.KeyBundle;
 import org.mozilla.gecko.sync.delegates.ClientsDataDelegate;
@@ -384,7 +386,11 @@ public class SyncClientsEngineStage extends AbstractSessionManagingSyncStage {
     r.appPackage = AppConstants.ANDROID_PACKAGE_NAME;
     r.device = android.os.Build.MODEL;
     r.formfactor = delegate.getFormFactor();
-
+    // Include the GCM endpoint which was (hopefully) defined in BrowserApp by now.
+    r.pushUrl = GeckoSharedPrefs.forApp(session.getContext()).getString(GCM.ENDPOINT, null);
+    if (r.pushUrl == null) {
+      Logger.debug(LOG_TAG, "GCM URL not defined.");
+    }
     return r;
   }
 

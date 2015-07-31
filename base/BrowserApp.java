@@ -13,6 +13,7 @@ import org.mozilla.gecko.Tabs.TabEvents;
 import org.mozilla.gecko.animation.PropertyAnimator;
 import org.mozilla.gecko.animation.TransitionsTracker;
 import org.mozilla.gecko.animation.ViewHelper;
+import org.mozilla.gecko.background.common.log.Logger;
 import org.mozilla.gecko.db.BrowserContract.Combined;
 import org.mozilla.gecko.db.BrowserDB;
 import org.mozilla.gecko.db.SuggestedSites;
@@ -754,21 +755,22 @@ public class BrowserApp extends GeckoApp
                 this.gcmBridge.onCreate(appContext, getActivity(), savedInstanceState);
             } catch (IOException x) {
                 // could not instantiate the GCM bridge, so fail.
-                Log.w(LOGTAG, "Google Play not present or available. GCM bridge unavailable.");
+                Logger.info(LOGTAG, "Google Play not present or available. GCM bridge unavailable.");
                 this.gcmBridge = null;
             } catch (BridgeException x) {
                 // Some other error caused the bridge to fail.
-                Log.e(LOGTAG, "Could not create the GCM bridge.", x);
+                Logger.error(LOGTAG, "Could not create the GCM bridge.", x);
                 this.gcmBridge = null;
             }
             try {
                 // Set the endpoint for Sync to relay to the server / call on delta
                 prefs.edit().putString(GCM.ENDPOINT, this.gcmBridge.getPushEndpoint());
+                Logger.debug(LOGTAG, "Defining GCM endpoint");
                 // TODO: register handler routine to call when a push event occurs.
 
 
            } catch (BridgeException x) {
-                Log.e(LOGTAG, "Could not fetch push endpoint", x);
+                Logger.error(LOGTAG, "Could not fetch push endpoint", x);
            }
        }
 

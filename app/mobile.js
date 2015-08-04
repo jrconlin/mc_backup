@@ -415,7 +415,9 @@ pref("font.size.inflation.minTwips", 0);
 pref("browser.ui.zoom.force-user-scalable", false);
 
 pref("ui.zoomedview.disabled", false);
-pref("ui.zoomedview.limitReadableSize", 8);  // value in layer pixels
+pref("ui.zoomedview.limitReadableSize", 8); // value in layer pixels
+pref("ui.zoomedview.defaultZoomFactor", 2);
+pref("ui.zoomedview.simplified", true); // Do not display all the zoomed view controls
 
 pref("ui.touch.radius.enabled", false);
 pref("ui.touch.radius.leftmm", 3);
@@ -932,3 +934,6 @@ pref("dom.serviceWorkers.interception.enabled", true);
 
 // Enable Cardboard VR on mobile, assuming VR at all is enabled
 pref("dom.vr.cardboard.enabled", true);
+
+// TODO: Disabled until bug 1190301 is fixed.
+pref("browser.tabs.showAudioPlayingIcon", false);

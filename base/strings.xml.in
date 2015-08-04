@@ -310,6 +310,8 @@
   <string name="stop">&stop;</string>
   <string name="site_security">&site_security;</string>
   <string name="close_tab">&close_tab;</string>
+  <string name="tab_audio_playing">&tab_audio_playing;</string>
+  <string name="tab_audio_muted">&tab_audio_muted;</string>
   <string name="new_tab_opened">&new_tab_opened;</string>
   <string name="new_private_tab_opened">&new_private_tab_opened;</string>
   <string name="switch_button_message">&switch_button_message;</string>
@@ -557,6 +559,12 @@
   <string name="restriction_disallow_private_browsing_description">&restriction_disallow_private_browsing_description;</string>
   <string name="restriction_disallow_location_services_title">&restriction_disallow_location_services_title;</string>
   <string name="restriction_disallow_location_services_description">&restriction_disallow_location_services_description;</string>
+  <string name="restriction_disallow_display_settings_title">&restriction_disallow_display_settings_title;</string>
+  <string name="restriction_disallow_display_settings_description">&restriction_disallow_display_settings_description;</string>
+  <string name="restriction_disallow_clear_history_title">&restriction_disallow_clear_history_title;</string>
+  <string name="restriction_disallow_clear_history_description">&restriction_disallow_clear_history_description;</string>
+  <string name="restriction_disallow_master_password_title">&restriction_disallow_master_password_title;</string>
+  <string name="restriction_disallow_master_password_description">&restriction_disallow_master_password_description;</string>
 
   <!-- Miscellaneous -->
   <string name="ellipsis">&ellipsis;</string>

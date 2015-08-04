@@ -4,6 +4,7 @@
 
 package org.mozilla.gecko.fxa.sync;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
@@ -15,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.mozilla.gecko.AppConstants;
+import org.mozilla.gecko.GeckoSharedPrefs;
 import org.mozilla.gecko.background.common.log.Logger;
 import org.mozilla.gecko.background.fxa.FxAccountUtils;
 import org.mozilla.gecko.background.fxa.SkewHandler;
@@ -37,6 +39,8 @@ import org.mozilla.gecko.sync.SharedPreferencesClientsDataDelegate;
 import org.mozilla.gecko.sync.SyncConfiguration;
 import org.mozilla.gecko.sync.ThreadPool;
 import org.mozilla.gecko.sync.Utils;
+import org.mozilla.gecko.sync.bridge.DeviceManager;
+import org.mozilla.gecko.sync.bridge.GCM;
 import org.mozilla.gecko.sync.crypto.KeyBundle;
 import org.mozilla.gecko.sync.delegates.BaseGlobalSessionCallback;
 import org.mozilla.gecko.sync.delegates.ClientsDataDelegate;
@@ -49,6 +53,7 @@ import org.mozilla.gecko.tokenserver.TokenServerException;
 import org.mozilla.gecko.tokenserver.TokenServerToken;
 
 import android.accounts.Account;
+import android.bluetooth.BluetoothClass;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
@@ -533,6 +538,29 @@ public class FxAccountSyncAdapter extends AbstractThreadedSyncAdapter {
             final KeyBundle syncKeyBundle = married.getSyncKeyBundle();
             final String clientState = married.getClientState();
             syncWithAssertion(audience, assertion, tokenServerEndpointURI, tokenBackoffHandler, sharedPrefs, syncKeyBundle, clientState, sessionCallback, extras, fxAccount);
+            // Register the endpoint with the Device Manager.
+            // Q: Should this use the FxASharedPrefs? If so, need to set these in BrowserApp
+            SharedPreferences prefs = GeckoSharedPrefs.forProfile(getContext());
+            String endpoint = prefs.getString(GCM.ENDPOINT, null);
+            if (endpoint != null) {
+              String dm_endpoint = prefs.getString(DeviceManager.ENDPOINT, null);
+              String device_id = prefs.getString(DeviceManager.DEVICEID, null);
+              if (dm_endpoint != null) {
+                try {
+                  DeviceManager dm = new DeviceManager(dm_endpoint);
+                  if (device_id == null) {
+                    final ClientsDataDelegate clientsDataDelegate =
+                            new SharedPreferencesClientsDataDelegate(sharedPrefs, getContext());
+                    String device_name = clientsDataDelegate.getClientName();
+                    device_id = dm.register(assertion, device_name, endpoint);
+                  } else {
+                    dm.update(assertion, device_id, endpoint);
+                  }
+                  prefs.edit().putString(DeviceManager.DEVICEID, device_id);
+                } catch (IOException x) {
+                }
+              }
+            }
 
             if (AppConstants.MOZ_ANDROID_FIREFOX_ACCOUNT_PROFILES) {
               // Force fetch the profile avatar information.

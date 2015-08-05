@@ -906,6 +906,7 @@ sync_java_files = [
     'sync/BackoffHandler.java',
     'sync/BadRequiredFieldJSONException.java',
     'sync/bridge/BridgeException.java',
+    'sync/bridge/DeviceManager.java',
     'sync/bridge/GCM.java',
     'sync/bridge/GCMBridgeBroadcastReceiver.java',
     'sync/bridge/GCMIntentService.java',

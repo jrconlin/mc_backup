@@ -105,7 +105,14 @@
         <!-- This resources comes from Google Play Services. Required for casting support. -->
         <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version" />
 #endif
-
+#ifdef MOZ_ANDROID_GCM_PUSH
+    <permission android:name="@ANDROID_PACKAGE_NAME@.C2D_MESSAGE"
+        android:protectionLevel="signature" />
+    <uses-permission
+        android:name="@ANDROID_PACKAGE_NAME@.permission.C2D_MESSAGE" />
+    <uses-permission
+        android:name="com.google.android.c2dm.permission.RECEIVE" />
+#endif
         <activity android:name="@MOZ_ANDROID_BROWSER_INTENT_CLASS@"
                   android:label="@string/moz_app_displayname"
                   android:taskAffinity="@ANDROID_PACKAGE_NAME@.BROWSER"
@@ -385,6 +392,16 @@
                   android:process="@MANGLED_ANDROID_PACKAGE_NAME@.Restarter">
         </service>
 
+#ifdef MOZ_ANDROID_GCM_PUSH
+        <receiver android:name=".sync.bridge..GCMBridgeBroadcastReceiver"
+            android:permission="com.google.android.c2dm.permission.RECEIVE">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+                <category android:name="@ANDROID_PACKAGE_NAME@" />
+            </intent-filter>
+        </receiver>
+        <service android:name=".sync.bridge.GCMIntentService" />
+#endif
 #include ../services/manifests/FxAccountAndroidManifest_activities.xml.in
 #include ../services/manifests/HealthReportAndroidManifest_activities.xml.in
 #include ../services/manifests/SyncAndroidManifest_activities.xml.in

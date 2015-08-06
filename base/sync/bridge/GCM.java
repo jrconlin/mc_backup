@@ -3,9 +3,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.util.EntityUtils;
+import org.mozilla.gecko.AppConstants;
 import org.mozilla.gecko.GeckoSharedPrefs;
 import org.mozilla.gecko.background.common.log.Logger;
 
@@ -53,18 +55,18 @@ public class GCM {
     public static final String TAG = "Sync:GCM Bridge:";
 
     // Sender ID is the pre-registered GCM Sender ID from the Google Developer's Console
-    private String SENDER_ID;
+    private String SENDER_ID = "";
 
     // Values returend from the server after a registration.
-    private String PushEndpoint;
-    private String UserAgentId;
-    private String SharedSecret;
-    private String ChannelID;   // yes, this is used in one method, but this is readable & findable.
+    private String PushEndpoint = "";
+    private String UserAgentId = "";
+    private String SharedSecret = "";
+    private String ChannelID = "";   // yes, this is used in one method, but this is readable & findable.
 
     private Activity activity;
     private Context context;
     protected GoogleCloudMessaging gcm;
-    private String registrationId;
+    private String registrationId = "";
 
     /** Initialize the GCM with the app SENDER_ID
      *
@@ -76,25 +78,6 @@ public class GCM {
      */
     public GCM(String sender_id) {
         this.SENDER_ID = sender_id;
-    }
-
-    /** Get application specific property values.
-     *
-     * @param context Application Context.
-     * @return loaded properties
-     * @throws IOException
-     */
-    protected Properties getConfig(Context context) throws IOException {
-        Properties prop = new Properties();
-        // If using gradle you can create this file in the res/raw/ directory
-        // and load it via its Resource ID.
-        // InputStream file = getResources().openRawResource(
-        //  R.raw.app_properties)
-        // Otherwise, you'll have to load the file in from the explicit path.
-        FileInputStream file = context.openFileInput("res/raw/app_properties");
-        prop.load(file);
-        file.close();
-        return prop;
     }
 
     /** Check to see if Google Play services are enabled for this device. If not, give up.
@@ -127,9 +110,12 @@ public class GCM {
      * @throws BridgeException
      */
     private String getRegistrationId() throws BridgeException {
-        if (!this.registrationId.equals("")) return this.registrationId;
+        if (!this.registrationId.equals("")) {
+            return this.registrationId;
+        }
         try {
-            this.registrationId = this.gcmRegister(SENDER_ID);
+            this.registrationId = this.gcmRegister(this.SENDER_ID);
+            Logger.debug(TAG, "Got registration ID:" + this.registrationId);
         }catch(IOException x) {
             // Well, that didn't work...
             Logger.error(TAG + "getRegistrationId", x.getLocalizedMessage());
@@ -347,12 +333,14 @@ public class GCM {
     protected String gcmRegister(String senderId) throws IOException {
         //TODO: wrap this as an async call?
         try {
-            if (gcm == null) {
-                gcm = GoogleCloudMessaging.getInstance(context);
+            if (this.gcm == null) {
+                this.gcm = GoogleCloudMessaging.getInstance(context);
             }
-            return gcm.register(senderId);
-        } catch (IOException x) {
-            Logger.error(TAG + "registerInBackground", x.getLocalizedMessage());
+            Log.d(TAG + "gcmReg", "Attempting to register in gcm for " + senderId);
+            return this.gcm.register(senderId);
+        } catch (Exception x) {
+            // normally catch IOException
+            Log.e(TAG + "gcmReg", x.getLocalizedMessage());
             throw x;
         }
     }
@@ -383,18 +371,16 @@ public class GCM {
         this.context = context;
         this.activity = activity;
 
-        Properties config = this.getConfig(context);
-        this.SENDER_ID = config.getProperty("sender_id");
-
         if (this.checkPlayServices(this.context, this.activity)) {
+            Log.d(TAG + "onCreate", "Play services returned true");
             this.gcm = GoogleCloudMessaging.getInstance(activity);
         } else {
             throw new BridgeException("Google Play Services not present");
         }
         if (this.SENDER_ID.equals(""))
-            this.SENDER_ID = savedInstanceState.getString(PUSH_SENDER_ID);
+            this.SENDER_ID = AppConstants.MOZ_ANDROID_GCM_SENDERID;
         // Initialize the client registration id if required.
-        if (this.registrationId.equals(""))
+        if (this.registrationId == null || this.registrationId.equals(""))
             this.getRegistrationId();
 
         // TODO: How can we register callbacks / events within GCMIntentService

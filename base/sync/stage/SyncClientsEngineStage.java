@@ -387,7 +387,7 @@ public class SyncClientsEngineStage extends AbstractSessionManagingSyncStage {
     r.device = android.os.Build.MODEL;
     r.formfactor = delegate.getFormFactor();
     // Include the GCM endpoint which was (hopefully) defined in BrowserApp by now.
-    r.pushUrl = GeckoSharedPrefs.forApp(session.getContext()).getString(GCM.ENDPOINT, null);
+    r.pushUrl = GeckoSharedPrefs.forApp(session.getContext()).getString(GCM.ENDPOINT_PREF, null);
     if (r.pushUrl == null) {
       Logger.debug(LOG_TAG, "GCM URL not defined.");
     }

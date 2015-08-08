@@ -53,7 +53,6 @@ import org.mozilla.gecko.tokenserver.TokenServerException;
 import org.mozilla.gecko.tokenserver.TokenServerToken;
 
 import android.accounts.Account;
-import android.bluetooth.BluetoothClass;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
@@ -541,7 +540,7 @@ public class FxAccountSyncAdapter extends AbstractThreadedSyncAdapter {
             // Register the endpoint with the Device Manager.
             // Q: Should this use the FxASharedPrefs? If so, need to set these in BrowserApp
             SharedPreferences prefs = GeckoSharedPrefs.forProfile(getContext());
-            String endpoint = prefs.getString(GCM.ENDPOINT, null);
+            String endpoint = prefs.getString(GCM.ENDPOINT_PREF, null);
             if (endpoint != null) {
               String dm_endpoint = prefs.getString(DeviceManager.ENDPOINT, null);
               String device_id = prefs.getString(DeviceManager.DEVICEID, null);

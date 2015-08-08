@@ -8,7 +8,6 @@
 #ifdef MOZ_ANDROID_SHARED_ID
       android:sharedUserId="@MOZ_ANDROID_SHARED_ID@"
 #endif
-      android:theme="@style/FilteredTouches"
       >
     <uses-sdk android:minSdkVersion="@MOZ_ANDROID_MIN_SDK_VERSION@"
 #ifdef MOZ_ANDROID_MAX_SDK_VERSION
@@ -106,6 +105,7 @@
         <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version" />
 #endif
 #ifdef MOZ_ANDROID_GCM_PUSH
+    <!-- GCM integration for Push -->
     <permission android:name="@ANDROID_PACKAGE_NAME@.C2D_MESSAGE"
         android:protectionLevel="signature" />
     <uses-permission
@@ -393,14 +393,14 @@
         </service>
 
 #ifdef MOZ_ANDROID_GCM_PUSH
-        <receiver android:name=".sync.bridge..GCMBridgeBroadcastReceiver"
+        <receiver android:name="org.mozilla.gecko.sync.bridge.GCMBridgeBroadcastReceiver"
             android:permission="com.google.android.c2dm.permission.RECEIVE">
             <intent-filter>
                 <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
                 <category android:name="@ANDROID_PACKAGE_NAME@" />
             </intent-filter>
         </receiver>
-        <service android:name=".sync.bridge.GCMIntentService" />
+        <service android:name="org.mozilla.gecko.sync.bridge.GCMIntentService" />
 #endif
 #include ../services/manifests/FxAccountAndroidManifest_activities.xml.in
 #include ../services/manifests/HealthReportAndroidManifest_activities.xml.in

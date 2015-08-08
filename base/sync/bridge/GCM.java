@@ -5,17 +5,20 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.util.EntityUtils;
 import org.mozilla.gecko.AppConstants;
 import org.mozilla.gecko.GeckoSharedPrefs;
 import org.mozilla.gecko.background.common.log.Logger;
 
-import java.io.FileInputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.Buffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Properties;
 import java.util.UUID;
 
 import org.apache.http.HttpResponse;
@@ -25,6 +28,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.mozilla.gecko.util.IOUtils;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -44,14 +48,17 @@ public class GCM {
     // Statics
     // Preference storage name (ideally, from Gecko)
     private static final String PUSH_SENDER_ID = "push_sender_id";
-    private static final String BACKEND_URL = "push_backend_url";
-    private static final String UAID = "push_uaid";
-    private static final String CHID = "push_channel_id";
-    private static final String SECRET = "push_secret";
-    private static final String OLD_REG = "push_previous_registration_id";
+    private static final String PUSH_URL_PREF = "push_backend_url";
+    // Default Push endpoint URL.
+    //private static final String PushServerHost = "https://updates.services.mozilla.com";
+    private static final String PushServerURL = "http://192.168.44.128:8082";
+    private static final String UAID_PREF = "push_uaid";
+    private static final String CHID_PREF = "push_channel_id";
+    private static final String SECRET_PREF = "push_secret";
+    private static final String OLD_REG_PREF = "push_previous_registration_id";
     private static final String BRIDGE_TYPE = "gcm";
     private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
-    public static final String ENDPOINT = "push_endpoint";
+    public static final String ENDPOINT_PREF = "push_endpoint";
     public static final String TAG = "Sync:GCM Bridge:";
 
     // Sender ID is the pre-registered GCM Sender ID from the Google Developer's Console
@@ -61,12 +68,14 @@ public class GCM {
     private String PushEndpoint = "";
     private String UserAgentId = "";
     private String SharedSecret = "";
-    private String ChannelID = "";   // yes, this is used in one method, but this is readable & findable.
+    protected String ChannelID = "";
+
+    protected String RegistrationID = "";
 
     private Activity activity;
     private Context context;
     protected GoogleCloudMessaging gcm;
-    private String registrationId = "";
+    private boolean gcmFailure = false;
 
     /** Initialize the GCM with the app SENDER_ID
      *
@@ -91,6 +100,10 @@ public class GCM {
         if (context == null || activity == null) {
             throw (new IOException("Uninitialized call to GCM"));
         }
+        // see note in gcmRegister()
+        if (this.gcmFailure) {
+            return false;
+        }
         int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(context);
         if (resultCode != ConnectionResult.SUCCESS) {
             if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
@@ -104,25 +117,46 @@ public class GCM {
         return true;
     }
 
+    private JSONObject toJson(HttpEntity entity) throws IOException, JSONException{
+        String str = this.getString(entity);
+        JSONTokener jsonTokener = new JSONTokener(str);
+        return new JSONObject(jsonTokener);
+    }
+
+    private String getString(HttpEntity entity) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent(), "UTF-8"));
+        StringBuilder builder = new StringBuilder();
+        for (String line = ""; line != null ; line = reader.readLine()) {
+            builder.append(line);
+        }
+        return builder.toString();
+    }
+
     /** Get the GCM Registration ID
      *
      * @return GCM Registration ID
      * @throws BridgeException
      */
-    private String getRegistrationId() throws BridgeException {
-        if (!this.registrationId.equals("")) {
-            return this.registrationId;
+    public String getRegistrationID() throws BridgeException {
+        if (this.RegistrationID.isEmpty()) {
+            try {
+                this.RegistrationID = this.gcmRegister(this.SENDER_ID);
+                Logger.debug(TAG, "Got registration ID:" + this.RegistrationID);
+            } catch (IOException x) {
+                // Well, that didn't work...
+                Logger.error(TAG + "getRegistrationId", x.getLocalizedMessage());
+                this.RegistrationID = "";
+                throw new BridgeException(x.toString());
+            }
         }
-        try {
-            this.registrationId = this.gcmRegister(this.SENDER_ID);
-            Logger.debug(TAG, "Got registration ID:" + this.registrationId);
-        }catch(IOException x) {
-            // Well, that didn't work...
-            Logger.error(TAG + "getRegistrationId", x.getLocalizedMessage());
-            this.registrationId = "";
-            throw new BridgeException(x.toString());
+        return this.RegistrationID;
+    }
+
+    public String getChannelID() {
+        if (this.ChannelID.isEmpty()){
+            this.ChannelID = this.newChannelId();
         }
-        return this.registrationId;
+        return this.ChannelID;
     }
 
     /** Store a preference string
@@ -136,8 +170,10 @@ public class GCM {
     private void storePref(String name, String value) {
         final SharedPreferences.Editor editor =
                 this.activity.getPreferences(Context.MODE_PRIVATE).edit();
+        Log.d(TAG + "store", ">>>>>>>>>>>>>>>> HERE");
         editor.putString(name, value);
-        editor.apply();
+        editor.commit();
+        Log.d(TAG + "store", ">>>>>>>>>>>>>>>> THERE");
     }
 
     /** Update the Push server provided, persistent app preferences.
@@ -154,24 +190,24 @@ public class GCM {
         this.SharedSecret = reply.getString("hash");
         this.ChannelID = reply.getString("channelID");
         // Save the preferences to non-volatile.
-        editor.putString(UAID, this.UserAgentId);
-        editor.putString(ENDPOINT, this.PushEndpoint);
-        editor.putString(SECRET, this.SharedSecret);
-        editor.putString(CHID, this.ChannelID);
-        editor.apply();
+        editor.putString(UAID_PREF, this.UserAgentId);
+        editor.putString(ENDPOINT_PREF, this.PushEndpoint);
+        editor.putString(SECRET_PREF, this.SharedSecret);
+        editor.putString(CHID_PREF, this.ChannelID);
+        editor.commit();
     }
 
     // Convenience wrappers for local vars. Will use in memory cache or pull from preferences.
     private String getUaid () {
         if (this.UserAgentId == null) {
-            this.UserAgentId = this.activity.getPreferences(Context.MODE_PRIVATE).getString(UAID, "");
+            this.UserAgentId = this.activity.getPreferences(Context.MODE_PRIVATE).getString(UAID_PREF, "");
         }
         return this.UserAgentId;
     }
 
     private String getSharedSecret () {
         if (this.SharedSecret == null) {
-            this.SharedSecret = this.activity.getPreferences(Context.MODE_PRIVATE).getString(SECRET, "");
+            this.SharedSecret = this.activity.getPreferences(Context.MODE_PRIVATE).getString(SECRET_PREF, "");
         }
         return this.SharedSecret;
     }
@@ -225,20 +261,26 @@ public class GCM {
      * changes, use updateRegistration
      *
      * @param registrationId GCM Registration ID
-     * @param channelId A unique channelID
      * @return the registered endpoint.
      * @throws IOException
      * @throws BridgeException
      */
-    protected String sendRegistration(final String registrationId, final String channelId) throws IOException, BridgeException {
+    protected String sendRegistration(final String registrationId, String channelID) throws IOException, BridgeException {
         SharedPreferences prefs = this.activity.getPreferences(Context.MODE_PRIVATE);
-        String backendUrl = prefs.getString(BACKEND_URL,
-                "https://push.services.mozilla.org/register");
+        String backendUrl = prefs.getString(PUSH_URL_PREF,
+                PushServerURL + "/register");
         // Use the pre-existing UAID if we have one.
         String uaid = this.getUaid();
         JSONObject msg = new JSONObject();
         JSONObject routerData = new JSONObject();
+        // ChannelID needs to be unique per "channel". A channel is a separate receiver (e.g. an
+        // app or endpoint.)
+
+        if (channelID == null || channelID.isEmpty()) {
+            channelID = this.getChannelID();
+        }
         if (backendUrl.equals("")){
+            Log.e(TAG + "sendReg", "No push server url");
             throw new IOException("No backend URL specified for GCM bridge. Aborting.");
         }
         if (uaid != null && ! uaid.equals("")) {
@@ -247,81 +289,95 @@ public class GCM {
         HttpPost req = new HttpPost(backendUrl);
         try {
             msg.put("type", BRIDGE_TYPE);
-            msg.put("channelID", channelId);
+            msg.put("channelID", channelID);
             routerData.put("token", registrationId);
             msg.put("data", routerData);
             StringEntity body = new StringEntity(msg.toString());
             body.setContentType("application/json");
             req.setEntity(body);
         }catch(JSONException x) {
+            Log.e(TAG + "sendReg", "Failed to send registration " + x.toString());
             throw new BridgeException("Could not encode body " + x.getMessage());
         }
-        DefaultHttpClient client = new DefaultHttpClient();
-        HttpResponse resp = client.execute(req);
-        int code = resp.getStatusLine().getStatusCode();
-        if (code < 200 || code >= 300) {
-            Logger.error(TAG + "sendRegistration", "Failed to register " + code);
-            throw new BridgeException("Registration failed:" + code);
-        }
-        Logger.info(TAG + "sendRegistration", "Successfully registered");
         try {
-            JSONObject reply = new JSONObject(new JSONTokener(resp.getEntity().toString()));
-            this.updatePrefs(reply);
+            Log.d(TAG + "onCreat", ">>>>>>>>>>>>>>>>> 1" + backendUrl + " " + msg.toString());
+            DefaultHttpClient client = new DefaultHttpClient();
+            HttpResponse resp = client.execute(req);
+            Log.d(TAG + "onCreat", ">>>>>>>>>>>>>>>>> 2");
+            int code = resp.getStatusLine().getStatusCode();
+            if (code < 200 || code >= 300) {
+                Log.e(TAG + "sendReg", "Failed to register " + code);
+                throw new BridgeException("Registration failed:" + code);
+            }
+            // I can't pass JSONTokener as an arg to JSONObject? Really?
+            JSONObject response = this.toJson(resp.getEntity());
+            Log.d(TAG + "sendReg", "Successfully registered : " + response.toString());
+            this.updatePrefs(response);
+            Log.d(TAG + "sendReg", "Registered endpoint: " + this.PushEndpoint);
             return this.PushEndpoint;
-        } catch (JSONException x) {
-            throw new BridgeException("Could not return endpoint " + x.getMessage());
+        } catch (Exception x) {
+            Log.e(TAG + "sendReg", "Registration failed " + x.toString());
+            throw new BridgeException("Could not return endpoint ");
         }
     }
 
     /** Update an existing push registration record to have the latest info
      *
-     * @param registrationId GCM Registration ID
+     * @param registrationID GCM Registration ID
      * @throws BridgeException
      */
-    protected void updateRegistration(final String registrationId) throws BridgeException {
+    protected void updateRegistration(final String registrationID) throws BridgeException {
         HttpResponse resp;
         JSONObject msg = new JSONObject();
         JSONObject routerData = new JSONObject();
         SharedPreferences prefs = this.activity.getPreferences(Context.MODE_PRIVATE);
-        String backendUrl = prefs.getString(BACKEND_URL,
-                "https://push.services.mozilla.org/register/");
+        String backendUrl = prefs.getString(PUSH_URL_PREF,
+                PushServerURL + "/register");
+        Log.d(TAG + "upReg", "Updating registration");
         String uaid = this.getUaid();
-        String secret = this.getSharedSecret();
-        if (secret == null || secret.isEmpty()) {
-            Logger.error(TAG + "updateRegistration",
-                    "Attempted update of uninitialized connection");
-            throw new BridgeException("Cannot update uninitialized connection");
+        if (uaid.isEmpty()) {
+            Log.e(TAG + "upreg", "No UAID found. Did you call sendRegistration first?");
+            throw new BridgeException("No UAID. Channel not registered?");
         }
-        backendUrl += "/" + uaid;
 
+        Log.d(TAG + "upReg", "Sending updated info to " + backendUrl);
         HttpPut req = new HttpPut(backendUrl);
         try {
             // Routing bridges are per UAID, so all channels go over the routing bridge.
             msg.put("type", BRIDGE_TYPE);
-            routerData.put("token", registrationId);
+            routerData.put("token", registrationID);
             msg.put("data", routerData);
             StringEntity body = new StringEntity(msg.toString());
-            req.addHeader("Authorization", this.genSignature(body));
+            if (this.getSharedSecret() != "") {
+                req.addHeader("Authorization", this.genSignature(body));
+            }
             req.setEntity(body);
         } catch (JSONException | IOException x) {
-            Logger.error(TAG + "updateRegistration",
-                    "Update failed. Could not encode request " + x.toString());
+            Log.e(TAG + "upReg",
+                    "Update failed. Could not encode request "+ x.toString());
             throw new BridgeException("Failed to Update Backend " + x.toString());
         }
         DefaultHttpClient client = new DefaultHttpClient();
         try {
             resp = client.execute(req);
         } catch (IOException x) {
-            Logger.error(TAG + "updateRegistration",
+            Log.e(TAG + "upReg",
                     "Update failed. " + x.toString());
             throw new BridgeException(x.getCause());
         }
         int code = resp.getStatusLine().getStatusCode();
         if (code < 200 || code > 299) {
-            Logger.error(TAG + "updateRegistration",
-                    "Update Failed :" + code + " " + resp.getEntity().toString());
-            throw new BridgeException("Failed to Update Backend " + code);
+            String reason = "Unknown";
+            try {
+                reason = this.getString(resp.getEntity());
+            } catch (IOException x) {
+                // couldn't read the reason. 
+            }
+            Logger.error(TAG + "upReg",
+                    "Update Failed :" + code + " " + reason);
+            throw new BridgeException("Failed to Update record on push server " + code);
         }
+
     }
 
     /** Get the registrationID from GCM
@@ -337,11 +393,22 @@ public class GCM {
                 this.gcm = GoogleCloudMessaging.getInstance(context);
             }
             Log.d(TAG + "gcmReg", "Attempting to register in gcm for " + senderId);
+            // Google Play Services may lie. The check in checkPlayServices() may return true even
+            // if GPS isn't actually present. This will cause the following to generate a null
+            // pointer exception deep in it's code.
+
+            if (true) {
+                // TODO:: For testing, stub out the actual GCM registration, since it can be problematic.
+                Log.e(TAG+"gcmReg", "####### STUBBING OUT GCM #########");
+                return senderId;
+            }
             return this.gcm.register(senderId);
         } catch (Exception x) {
-            // normally catch IOException
-            Log.e(TAG + "gcmReg", x.getLocalizedMessage());
-            throw x;
+            // If this fails, presume that GPS is borked and Christmas is ruined, forever.
+            // If this fails, presume that GPS is borked and Christmas is ruined, forever.
+            this.gcmFailure = true;
+            Log.e(TAG + "gcmReg", "GCM Registration failed " + x.toString());
+            throw new IOException("GCM Registration Failure");
         }
     }
 
@@ -351,7 +418,7 @@ public class GCM {
      *
      * @return UUID ChannelID
      */
-    public static String newChannelId(){
+    public String newChannelId() {
         return UUID.randomUUID().toString();
     }
 
@@ -372,7 +439,7 @@ public class GCM {
         this.activity = activity;
 
         if (this.checkPlayServices(this.context, this.activity)) {
-            Log.d(TAG + "onCreate", "Play services returned true");
+            Log.d(TAG + "onCreat", "Play services returned true");
             this.gcm = GoogleCloudMessaging.getInstance(activity);
         } else {
             throw new BridgeException("Google Play Services not present");
@@ -380,31 +447,35 @@ public class GCM {
         if (this.SENDER_ID.equals(""))
             this.SENDER_ID = AppConstants.MOZ_ANDROID_GCM_SENDERID;
         // Initialize the client registration id if required.
-        if (this.registrationId == null || this.registrationId.equals(""))
-            this.getRegistrationId();
-
-        // TODO: How can we register callbacks / events within GCMIntentService
-        // to call sync functions on new events?
-
+        Log.d(TAG+"onCreat", "Checking registration IDs");
         // Check the old registration id, and update the server if required.
         final SharedPreferences prefs =
                 this.activity.getPreferences(Context.MODE_PRIVATE);
-        String oldReg = prefs.getString(OLD_REG, "");
-        if (!oldReg.equals(this.registrationId)) {
-            Logger.info(TAG + "getRegistrationIdFromPreferences",
-                    "Registration value changed from " + oldReg + " to " + this.registrationId);
-            this.storePref(OLD_REG, this.registrationId);
-            this.updateRegistration(this.registrationId);
+        String oldReg = prefs.getString(OLD_REG_PREF, "");
+        String regId = this.getRegistrationID();
+        if (oldReg.isEmpty()) {
+            Log.d(TAG + "onCreat", "Registering new ID " + regId);
+            // Generate a new ChannelID for this specific use of Push.
+            this.sendRegistration(regId, this.getChannelID());
         }
+        else if (!oldReg.equals(regId)) {
+            Log.d(TAG + "onCreat",
+                    "Registration value changed from " + oldReg + " to " + this.RegistrationID);
+            this.updateRegistration(regId);
+        }
+        // oldRegister is the same as the current one, no need to update.
+        Log.d(TAG + "onCreat", "recording registration");
+        prefs.edit().putString(OLD_REG_PREF, regId).commit();
+        Log.d(TAG + "onCreat", "Push channel registered.");
     }
 
     // This presumes you always want a new endpoint. It is recommended that you
     // store the endpoint along with the associated handler in some persistent
     // data store.
     public String getPushEndpoint() throws BridgeException {
-        String newChannelID = newChannelId();
+        this.ChannelID = newChannelId();
         try {
-            return this.sendRegistration(registrationId, newChannelID);
+            return this.sendRegistration(this.getRegistrationID(), this.getChannelID());
         }catch (IOException x) {
             Logger.error(TAG + "getPushEndpoint", "Failed to get push endpoint " + x.getMessage());
         }

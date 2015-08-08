@@ -120,7 +120,7 @@ public class SyncConfiguration {
     this.prefs = prefs;
     this.loadFromPrefs(prefs);
     if (AppConstants.MOZ_ANDROID_GCM_PUSH) {
-      String endpoint = prefs.getString(GCM.ENDPOINT, "");
+      String endpoint = prefs.getString(GCM.ENDPOINT_PREF, "");
       if (!endpoint.isEmpty()) {
         // TODO: send endpoint to sync server
       }

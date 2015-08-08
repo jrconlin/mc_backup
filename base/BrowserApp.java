@@ -610,7 +610,8 @@ public class BrowserApp extends GeckoApp
                     }
 
                     @Override
-                    public void onToastHidden(ButtonToast.ReasonHidden reason) { }
+                    public void onToastHidden(ButtonToast.ReasonHidden reason) {
+                    }
                 });
     }
 
@@ -763,12 +764,11 @@ public class BrowserApp extends GeckoApp
                 this.gcmBridge = null;
             }
             try {
-                // Set the endpoint for Sync to relay to the server / call on delta
-                prefs.edit().putString(GCM.ENDPOINT, this.gcmBridge.getPushEndpoint());
-                Logger.debug(LOGTAG, "Defining GCM endpoint");
-                // TODO: register handler routine to call when a push event occurs.
-
-
+                if (this.gcmBridge != null) {
+                    // Set the endpoint for Sync to relay to the server / call on delta
+                    prefs.edit().putString(GCM.ENDPOINT_PREF, this.gcmBridge.getPushEndpoint());
+                    Logger.debug(LOGTAG, "Defining GCM endpoint");
+                }
            } catch (BridgeException x) {
                 Logger.error(LOGTAG, "Could not fetch push endpoint", x);
            }

@@ -2088,11 +2088,9 @@ public class BrowserApp extends GeckoApp
     @Override
     public void addPrivateTab() {
         Tabs.getInstance().addPrivateTab();
-
-        showTrackingProtectionPromptIfApplicable();
     }
 
-    private void showTrackingProtectionPromptIfApplicable() {
+    public void showTrackingProtectionPromptIfApplicable() {
         final SharedPreferences prefs = getSharedPreferences();
 
         final boolean hasTrackingProtectionPromptBeShownBefore = prefs.getBoolean(GeckoPreferences.PREFS_TRACKING_PROTECTION_PROMPT_SHOWN, false);
@@ -2664,10 +2662,6 @@ public class BrowserApp extends GeckoApp
     }
 
     private void showFirstrunPager() {
-        // Do not show first run if we're in an Android Restricted Profile
-        if (RestrictedProfiles.isUserRestricted(this)) {
-            return;
-        }
         if (mFirstrunPane == null) {
             final ViewStub firstrunPagerStub = (ViewStub) findViewById(R.id.firstrun_pager_stub);
             mFirstrunPane = (FirstrunPane) firstrunPagerStub.inflate();
@@ -2883,8 +2877,10 @@ public class BrowserApp extends GeckoApp
 
         @Override
         public boolean onInterceptTouchEvent(View view, MotionEvent event) {
-            // Only try to hide the button toast if it's already inflated.
-            if (mToast != null) {
+            // Only try to hide the button toast if it's already inflated and if we are starting a tap action.
+            // By only hiding a toast at the start of a tap action, a button toast opened in response to a tap
+            // action is not immediately hidden as the tap action continues.
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN && mToast != null) {
                 mToast.hide(false, ButtonToast.ReasonHidden.TOUCH_OUTSIDE);
             }
 
@@ -3324,7 +3320,6 @@ public class BrowserApp extends GeckoApp
         share.setVisible(shareVisible);
         final boolean shareEnabled = StringUtils.isShareableUrl(url) && shareVisible;
         share.setEnabled(shareEnabled);
-        MenuUtils.safeSetEnabled(aMenu, R.id.addons, RestrictedProfiles.isAllowed(this, Restriction.DISALLOW_INSTALL_EXTENSION));
         MenuUtils.safeSetEnabled(aMenu, R.id.downloads, RestrictedProfiles.isAllowed(this, Restriction.DISALLOW_DOWNLOADS));
 
         // NOTE: Use MenuUtils.safeSetEnabled because some actions might
@@ -3389,10 +3384,6 @@ public class BrowserApp extends GeckoApp
             }
         }
 
-        // Hide tools menu if restriction is active
-        final boolean toolsVisible = RestrictedProfiles.isAllowed(this, Restriction.DISALLOW_TOOLS_MENU);
-        MenuUtils.safeSetVisible(aMenu, R.id.tools, toolsVisible);
-
         final boolean privateTabVisible = RestrictedProfiles.isAllowed(this, Restriction.DISALLOW_PRIVATE_BROWSING);
         MenuUtils.safeSetVisible(aMenu, R.id.new_private_tab, privateTabVisible);
 
@@ -3410,6 +3401,14 @@ public class BrowserApp extends GeckoApp
             exitGuestMode.setVisible(true);
         } else {
             enterGuestMode.setVisible(true);
+        }
+
+        if (!RestrictedProfiles.isAllowed(this, Restriction.DISALLOW_GUEST_BROWSING)) {
+            MenuUtils.safeSetVisible(aMenu, R.id.new_guest_session, false);
+        }
+
+        if (!RestrictedProfiles.isAllowed(this, Restriction.DISALLOW_INSTALL_EXTENSION)) {
+            MenuUtils.safeSetVisible(aMenu, R.id.addons, false);
         }
 
         return true;
@@ -3998,6 +3997,9 @@ public class BrowserApp extends GeckoApp
         final boolean inGuestMode = GeckoProfile.get(this).inGuestMode();
         if (inGuestMode) {
             return StartupAction.GUEST;
+        }
+        if (RestrictedProfiles.isRestrictedProfile(this)) {
+            return StartupAction.RESTRICTED;
         }
         return (passedURL == null ? StartupAction.NORMAL : StartupAction.URL);
     }

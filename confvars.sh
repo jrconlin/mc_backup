@@ -5,7 +5,7 @@
 MOZ_APP_BASENAME=Fennec
 MOZ_APP_VENDOR=Mozilla
 
-MOZ_APP_VERSION=42.0a1
+MOZ_APP_VERSION=43.0a1
 MOZ_APP_UA_NAME=Firefox
 
 MOZ_BRANDING_DIRECTORY=mobile/android/branding/unofficial
@@ -112,9 +112,3 @@ fi
 
 # Enable checking that add-ons are signed by the trusted root
 MOZ_ADDON_SIGNING=1
-if test "$MOZ_OFFICIAL_BRANDING"; then
-  if test "$MOZ_UPDATE_CHANNEL" = "beta" -o \
-          "$MOZ_UPDATE_CHANNEL" = "release"; then
-    MOZ_REQUIRE_SIGNING=1
-  fi
-fi

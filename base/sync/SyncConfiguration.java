@@ -119,12 +119,6 @@ public class SyncConfiguration {
     this.authHeaderProvider = authHeaderProvider;
     this.prefs = prefs;
     this.loadFromPrefs(prefs);
-    if (AppConstants.MOZ_ANDROID_GCM_PUSH) {
-      String endpoint = prefs.getString(GCM.ENDPOINT_PREF, "");
-      if (!endpoint.isEmpty()) {
-        // TODO: send endpoint to sync server
-      }
-    }
   }
 
   public SyncConfiguration(String username, AuthHeaderProvider authHeaderProvider, SharedPreferences prefs, KeyBundle syncKeyBundle) {

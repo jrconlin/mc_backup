@@ -371,7 +371,7 @@ public class GCM {
             try {
                 reason = this.getString(resp.getEntity());
             } catch (IOException x) {
-                // couldn't read the reason. 
+                // couldn't read the reason.
             }
             Logger.error(TAG + "upReg",
                     "Update Failed :" + code + " " + reason);

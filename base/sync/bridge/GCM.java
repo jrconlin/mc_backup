@@ -5,30 +5,20 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.util.EntityUtils;
 import org.mozilla.gecko.AppConstants;
 import org.mozilla.gecko.GeckoSharedPrefs;
 import org.mozilla.gecko.background.common.log.Logger;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.Buffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
-import org.mozilla.gecko.util.IOUtils;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -36,6 +26,14 @@ import com.google.android.gms.gcm.GoogleCloudMessaging;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+
+import ch.boye.httpclientandroidlib.HttpEntity;
+import ch.boye.httpclientandroidlib.HttpResponse;
+import ch.boye.httpclientandroidlib.client.methods.HttpPost;
+import ch.boye.httpclientandroidlib.client.methods.HttpPut;
+import ch.boye.httpclientandroidlib.entity.StringEntity;
+import ch.boye.httpclientandroidlib.impl.client.DefaultHttpClient;
+import ch.boye.httpclientandroidlib.util.EntityUtils;
 
 /** GCM Router client
  *
@@ -116,13 +114,13 @@ public class GCM {
         return true;
     }
 
-    private JSONObject toJson(HttpEntity entity) throws IOException, JSONException{
-        String str = this.getString(entity);
+    protected static JSONObject entityToJson(HttpEntity entity) throws IOException, JSONException{
+        String str = entityToString(entity);
         JSONTokener jsonTokener = new JSONTokener(str);
         return new JSONObject(jsonTokener);
     }
 
-    private String getString(HttpEntity entity) throws IOException {
+    protected static String entityToString(HttpEntity entity) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent(), "UTF-8"));
         StringBuilder builder = new StringBuilder();
         for (String line = ""; line != null ; line = reader.readLine()) {
@@ -186,7 +184,7 @@ public class GCM {
         // always use proffered values.
         this.UserAgentId = reply.getString("uaid");
         this.PushEndpoint = reply.getString("endpoint");
-        this.SharedSecret = reply.getString("hash");
+        this.SharedSecret = reply.getString("secret");
         this.ChannelID = reply.getString("channelID");
         // Save the preferences to non-volatile.
         editor.putString(UAID_PREF, this.UserAgentId);
@@ -309,7 +307,7 @@ public class GCM {
                 throw new BridgeException("Registration failed:" + code);
             }
             // I can't pass JSONTokener as an arg to JSONObject? Really?
-            JSONObject response = this.toJson(resp.getEntity());
+            JSONObject response = entityToJson(resp.getEntity());
             Log.d(TAG + "sendReg", "Successfully registered : " + response.toString());
             this.updatePrefs(response);
             Log.d(TAG + "sendReg", "Registered endpoint: " + this.PushEndpoint);
@@ -368,7 +366,7 @@ public class GCM {
         if (code < 200 || code > 299) {
             String reason = "Unknown";
             try {
-                reason = this.getString(resp.getEntity());
+                reason = entityToString(resp.getEntity());
             } catch (IOException x) {
                 // couldn't read the reason.
             }
@@ -462,7 +460,6 @@ public class GCM {
                     "Registration value changed from " + oldReg + " to " + this.RegistrationID);
             this.updateRegistration(regId);
         }
-        // oldRegister is the same as the current one, no need to update.
         Log.d(TAG + "onCreat", "recording registration");
         prefs.edit().putString(OLD_REG_PREF, regId).commit();
         Log.d(TAG + "onCreat", "Push channel registered.");

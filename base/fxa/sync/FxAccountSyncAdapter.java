@@ -544,7 +544,7 @@ public class FxAccountSyncAdapter extends AbstractThreadedSyncAdapter {
             final KeyBundle syncKeyBundle = married.getSyncKeyBundle();
             final String clientState = married.getClientState();
             syncWithAssertion(audience, assertion, tokenServerEndpointURI, tokenBackoffHandler, sharedPrefs, syncKeyBundle, clientState, sessionCallback, extras, fxAccount);
-            // Register the endpoint with the Device Manager.
+            // Register the GCM Push endpoint with user in the Device Manager.
             // Q: Should this use the FxASharedPrefs? If so, need to set these in BrowserApp
             SharedPreferences prefs = GeckoSharedPrefs.forProfile(getContext());
             String endpoint = prefs.getString(GCM.ENDPOINT_PREF, null);
@@ -556,6 +556,7 @@ public class FxAccountSyncAdapter extends AbstractThreadedSyncAdapter {
                         dm_endpoint);
                 try {
                   DeviceManager dm = new DeviceManager(dm_endpoint);
+                  // Remember, the push endpoint may have changed, It's safer to register or update.
                   if (device_id == null) {
                     final ClientsDataDelegate clientsDataDelegate =
                             new SharedPreferencesClientsDataDelegate(sharedPrefs, getContext());

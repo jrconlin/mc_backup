@@ -1,16 +1,5 @@
 package org.mozilla.gecko.sync.bridge;
 
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.conn.ClientConnectionRequest;
-import org.apache.http.conn.ConnectionPoolTimeoutException;
-import org.apache.http.conn.ManagedClientConnection;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicHttpRequest;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -20,9 +9,14 @@ import org.mozilla.gecko.background.common.log.Logger;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.http.HttpResponse;
-
+import ch.boye.httpclientandroidlib.HttpResponse;
+import ch.boye.httpclientandroidlib.client.HttpClient;
+import ch.boye.httpclientandroidlib.client.methods.HttpDelete;
+import ch.boye.httpclientandroidlib.client.methods.HttpGet;
 import ch.boye.httpclientandroidlib.client.methods.HttpPatch;
+import ch.boye.httpclientandroidlib.client.methods.HttpPost;
+import ch.boye.httpclientandroidlib.entity.StringEntity;
+import ch.boye.httpclientandroidlib.impl.client.DefaultHttpClient;
 
 /**
  */
@@ -60,12 +54,12 @@ public class DeviceManager {
                 Logger.error(TAG + "register", "Registration Failed on server " + code);
                 throw new IOException("Registration failed");
             }
-            JSONObject reply = new JSONObject(new JSONTokener(resp.getEntity().toString()));
+            JSONObject reply = GCM.entityToJson(resp.getEntity());
             return reply.getString("device-id");
         }catch (JSONException x) {
             Logger.error(TAG + "register", "Device Manager returned invalid response");
             if (resp != null) {
-                Logger.debug(TAG + "register", resp.getEntity().toString());
+                Logger.debug(TAG + "register", GCM.entityToString(resp.getEntity()));
             }
         }
         return null;
@@ -84,13 +78,14 @@ public class DeviceManager {
                 Logger.error(TAG + "register", "Registration Failed on server " + code);
                 throw new IOException("Registration failed");
             }
-            JSONObject response = new JSONObject(new JSONTokener(resp.getEntity().toString()));
+            JSONObject response = GCM.entityToJson(resp.getEntity());
             return response.getJSONArray("devices");
 
         }catch (JSONException x) {
             Logger.error(TAG + "register", "Device Manager returned invalid response");
+            Logger.error(TAG + "register", "Device Manager returned invalid response");
             if (resp != null) {
-                Logger.debug(TAG + "register", resp.getEntity().toString());
+                Logger.debug(TAG + "register", GCM.entityToString(resp.getEntity()));
             }
             throw new IOException("Invalid response from device manager");
         }
@@ -113,14 +108,14 @@ public class DeviceManager {
 
     public void update(String assertion, String deviceId, String push_endpoint) throws IOException {
         HttpPatch req = new HttpPatch(this.endpoint);
-        ch.boye.httpclientandroidlib.client.HttpClient client = new ch.boye.httpclientandroidlib.impl.client.DefaultHttpClient();
+        HttpClient client = new DefaultHttpClient();
         JSONObject msg = new JSONObject();
 
         req.setHeader("Authorization", assertion);
         try {
             msg.put("deviceid", deviceId);
             msg.put("endpoint", push_endpoint);
-            ch.boye.httpclientandroidlib.entity.StringEntity entity = new ch.boye.httpclientandroidlib.entity.StringEntity(msg.toString());
+            StringEntity entity = new StringEntity(msg.toString());
             req.setEntity(entity);
             client.execute(req);
         } catch (JSONException|IOException x) {

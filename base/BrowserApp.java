@@ -771,6 +771,10 @@ public class BrowserApp extends GeckoApp
            } catch (BridgeException x) {
                 Logger.error(LOGTAG, "Could not fetch push endpoint", x);
            }
+           /* At this point, we have a GCM endpoint registered with the Push Service, but we
+           need the user to log in so that we can associate the URL and user within the Device
+           Manager. See
+            */
        }
 
         mBrowserChrome = (ViewGroup) findViewById(R.id.browser_chrome);

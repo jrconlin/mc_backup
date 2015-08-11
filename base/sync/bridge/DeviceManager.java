@@ -25,7 +25,6 @@ import org.apache.http.HttpResponse;
 import ch.boye.httpclientandroidlib.client.methods.HttpPatch;
 
 /**
- * Created by firefox-dev on 04.08.15.
  */
 public class DeviceManager {
 

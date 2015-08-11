@@ -42,7 +42,6 @@ import javax.crypto.spec.SecretKeySpec;
  * This class defines registration handlers to allow Gecko to use Google Cloud
  * Messaging as a routing bridge.
  *
- * Created by jrconlin on 6/5/2015.
  */
 public class GCM {
     // Statics

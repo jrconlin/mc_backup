@@ -518,9 +518,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter implements BaseGlob
     Collection<String> knownStageNames = SyncConfiguration.validEngineNames();
     config.stagesToSync = Utils.getStagesToSyncFromBundle(knownStageNames, extras);
 
-    //TODO: Set the endpoint defined in BrowserApp.onCreate()
-    // config.setPushEndpoint(config.PushEndpoint);
-
     GlobalSession globalSession = new GlobalSession(config, this, this.mContext, clientsDataDelegate, nodeAssignmentDelegate);
     globalSession.start();
   }

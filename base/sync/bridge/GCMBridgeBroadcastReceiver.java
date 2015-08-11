@@ -10,7 +10,6 @@ import org.mozilla.gecko.background.common.log.Logger;
 
 /** Register ...sync.bridge.GCM as a broadcast receiver to handle GCM alerts
  *
- * Created by jrconlin on 6/10/2015.
  */
 public class GCMBridgeBroadcastReceiver extends WakefulBroadcastReceiver{
     @Override

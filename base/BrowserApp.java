@@ -746,13 +746,14 @@ public class BrowserApp extends GeckoApp
         ((GeckoApplication) getApplication()).prepareLightweightTheme();
         super.onCreate(savedInstanceState);
 
-        final Context appContext = getApplicationContext();
+        final Context appContext = ((GeckoApplication) getApplication()).getContext();
         SharedPreferences prefs = GeckoSharedPrefs.forProfile(appContext);
         // TODO: Prevent if in Guest Mode?
         if (AppConstants.MOZ_ANDROID_GCM_PUSH) {
             this.gcmBridge = new GCM(AppConstants.MOZ_ANDROID_GCM_SENDERID);
             try {
                 this.gcmBridge.onCreate(appContext, getActivity(), savedInstanceState);
+                // A thread has been spawned to put the push endpoint into the preferences.
             } catch (IOException x) {
                 // could not instantiate the GCM bridge, so fail.
                 Logger.info(LOGTAG, "Google Play not present or available. GCM bridge unavailable.");
@@ -762,20 +763,11 @@ public class BrowserApp extends GeckoApp
                 Logger.error(LOGTAG, "Could not create the GCM bridge.", x);
                 this.gcmBridge = null;
             }
-            try {
-                if (this.gcmBridge != null) {
-                    // Set the endpoint for Sync to relay to the server / call on delta
-                    prefs.edit().putString(GCM.ENDPOINT_PREF, this.gcmBridge.getPushEndpoint());
-                    Logger.debug(LOGTAG, "Defining GCM endpoint");
-                }
-           } catch (BridgeException x) {
-                Logger.error(LOGTAG, "Could not fetch push endpoint", x);
-           }
            /* At this point, we have a GCM endpoint registered with the Push Service, but we
            need the user to log in so that we can associate the URL and user within the Device
            Manager. See
             */
-       }
+        }
 
         mBrowserChrome = (ViewGroup) findViewById(R.id.browser_chrome);
         mActionBarFlipper = (ViewFlipper) findViewById(R.id.browser_actionbar);

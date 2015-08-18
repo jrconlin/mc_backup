@@ -544,38 +544,6 @@ public class FxAccountSyncAdapter extends AbstractThreadedSyncAdapter {
             final KeyBundle syncKeyBundle = married.getSyncKeyBundle();
             final String clientState = married.getClientState();
             syncWithAssertion(audience, assertion, tokenServerEndpointURI, tokenBackoffHandler, sharedPrefs, syncKeyBundle, clientState, sessionCallback, extras, fxAccount);
-            // Register the GCM Push endpoint with user in the Device Manager.
-            // Q: Should this use the FxASharedPrefs? If so, need to set these in BrowserApp
-            SharedPreferences prefs = GeckoSharedPrefs.forProfile(getContext());
-            String endpoint = prefs.getString(GCM.ENDPOINT_PREF, null);
-            if (endpoint != null) {
-              String dm_endpoint = prefs.getString(DeviceManager.ENDPOINT, null);
-              String device_id = prefs.getString(DeviceManager.DEVICEID, null);
-              if (dm_endpoint != null) {
-                Logger.debug(LOG_TAG, "Attempting registration with Device Manager at: " +
-                        dm_endpoint);
-                try {
-                  DeviceManager dm = new DeviceManager(dm_endpoint);
-                  // Remember, the push endpoint may have changed, It's safer to register or update.
-                  if (device_id == null) {
-                    final ClientsDataDelegate clientsDataDelegate =
-                            new SharedPreferencesClientsDataDelegate(sharedPrefs, getContext());
-                    String device_name = clientsDataDelegate.getClientName();
-                    device_id = dm.register(assertion, device_name, endpoint);
-                    Logger.debug(LOG_TAG, "Got new Device Manager device id:" + device_id);
-                  } else {
-                    dm.update(assertion, device_id, endpoint);
-                  }
-                  Logger.debug(LOG_TAG, "Successfully registered with Device Manager, id:" +
-                          device_id);
-                  prefs.edit().putString(DeviceManager.DEVICEID, device_id);
-                } catch (IOException x) {
-                }
-              } else {
-                Logger.debug(LOG_TAG, "No Device Manager endpoint defined");
-              }
-            }
-
             if (AppConstants.MOZ_ANDROID_FIREFOX_ACCOUNT_PROFILES) {
               // Force fetch the profile avatar information.
               Logger.info(LOG_TAG, "Fetching profile avatar information.");

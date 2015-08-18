@@ -910,7 +910,6 @@ sync_java_files = [
     'sync/bridge/GCM.java',
     'sync/bridge/GCMBridgeBroadcastReceiver.java',
     'sync/bridge/GCMIntentService.java',
-    'sync/bridge/IGCMCallback.java',
     'sync/CollectionKeys.java',
     'sync/CommandProcessor.java',
     'sync/CommandRunner.java',

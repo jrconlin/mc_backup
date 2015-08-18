@@ -51,8 +51,6 @@ public class ClientRecord extends Record {
   public String appPackage;          // E.g., "org.mozilla.firefox_beta"
   public String device;              // E.g., "HTC One"
 
-  public String pushUrl;             // WebPush URL for Sync events
-
   public ClientRecord(String guid, String collection, long lastModified, boolean deleted) {
     super(guid, collection, lastModified, deleted);
     this.ttl = CLIENTS_TTL;
@@ -155,9 +153,6 @@ public class ClientRecord extends Record {
       payload.put("device", this.device);
     }
 
-    if (this.pushUrl != null) {
-        payload.put("pushUrl", this.pushUrl);
-    }
   }
 
   @Override
